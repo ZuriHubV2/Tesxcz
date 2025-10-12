@@ -1,121 +1,186 @@
 --!strict
---// Platoboost Key System UI by YuriOnTop
+-- Platoboost Key System (Zysume-style UI) by YuriOnTop
 
-local Platoboost = loadstring(game:HttpGet("https://api.platoboost.com/v1/script-library"))()
-
---! configuration
-local service = 9661  -- replace with your Platoboost service ID
-local secret = "33c4eb06-e149-43fd-a328-b042251cccc4"  -- replace with your Platoboost secret
+-- CONFIG
+local service = 9661
+local secret = "33c4eb06-e149-43fd-a328-b042251cccc4"
 local useNonce = true
 
---! UI Setup
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "PlatoboostKeyUI"
-ScreenGui.ResetOnSpawn = false
-ScreenGui.Parent = game:GetService("CoreGui")
+local HttpService = game:GetService("HttpService")
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+local StarterGui = game:GetService("StarterGui")
 
-local Frame = Instance.new("Frame")
-Frame.Size = UDim2.new(0, 350, 0, 180)
-Frame.Position = UDim2.new(0.5, -175, 0.5, -90)
-Frame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
-Frame.BorderSizePixel = 0
-Frame.Parent = ScreenGui
+local function onMessage(msg)
+	StarterGui:SetCore("ChatMakeSystemMessage", { Text = "[Platoboost] " .. msg })
+end
 
-local UICorner = Instance.new("UICorner", Frame)
-UICorner.CornerRadius = UDim.new(0, 8)
+local fRequest = request or http_request or syn.request
+local fSetClipboard = setclipboard or toclipboard
+local fGetHwid = gethwid or function() return tostring(player.UserId) end
 
-local Title = Instance.new("TextLabel")
-Title.Size = UDim2.new(1, 0, 0, 30)
-Title.BackgroundTransparency = 1
-Title.Text = "Platoboost Key System"
-Title.Font = Enum.Font.GothamBold
-Title.TextColor3 = Color3.fromRGB(255, 255, 255)
-Title.TextSize = 18
-Title.Parent = Frame
+local function lEncode(tbl) return HttpService:JSONEncode(tbl) end
+local function lDecode(str) return HttpService:JSONDecode(str) end
 
-local KeyBox = Instance.new("TextBox")
-KeyBox.Size = UDim2.new(0.9, 0, 0, 30)
-KeyBox.Position = UDim2.new(0.05, 0, 0.3, 0)
-KeyBox.PlaceholderText = "Enter your key here..."
-KeyBox.Font = Enum.Font.Gotham
-KeyBox.Text = ""
-KeyBox.TextSize = 14
-KeyBox.TextColor3 = Color3.fromRGB(255, 255, 255)
-KeyBox.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-KeyBox.BorderSizePixel = 0
-KeyBox.Parent = Frame
-Instance.new("UICorner", KeyBox)
+local function lDigest(input)
+	local out = ""
+	for i = 1, #input do out ..= string.format("%02x", string.byte(input, i)) end
+	return out
+end
 
-local GetKey = Instance.new("TextButton")
-GetKey.Size = UDim2.new(0.42, 0, 0, 30)
-GetKey.Position = UDim2.new(0.05, 0, 0.55, 0)
-GetKey.Text = "Get Key"
-GetKey.Font = Enum.Font.GothamBold
-GetKey.TextSize = 14
-GetKey.TextColor3 = Color3.fromRGB(255, 255, 255)
-GetKey.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-GetKey.Parent = Frame
-Instance.new("UICorner", GetKey)
+local host = "https://api.platoboost.app"
+local ok, res = pcall(function() return fRequest({ Url = host .. "/public/connectivity", Method = "GET" }) end)
+if not ok or not res or (res.StatusCode ~= 200 and res.StatusCode ~= 429) then
+	host = "https://api.platoboost.net"
+end
 
-local VerifyKey = GetKey:Clone()
-VerifyKey.Text = "Verify Key"
-VerifyKey.Position = UDim2.new(0.53, 0, 0.55, 0)
-VerifyKey.Parent = Frame
+local function generateNonce()
+	local s = ""
+	for _ = 1, 16 do s ..= string.char(math.random(97, 122)) end
+	return s
+end
 
-local JoinDiscord = Instance.new("TextButton")
-JoinDiscord.Size = UDim2.new(0.9, 0, 0, 30)
-JoinDiscord.Position = UDim2.new(0.05, 0, 0.78, 0)
-JoinDiscord.Text = "Join Discord"
-JoinDiscord.Font = Enum.Font.GothamBold
-JoinDiscord.TextSize = 14
-JoinDiscord.TextColor3 = Color3.fromRGB(255, 255, 255)
-JoinDiscord.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-JoinDiscord.Parent = Frame
-Instance.new("UICorner", JoinDiscord)
-
---! logic
-GetKey.MouseButton1Click:Connect(function()
-	setclipboard("https://platoboost.com/service/"..service)
-	game.StarterGui:SetCore("SendNotification", {
-		Title = "Platoboost";
-		Text = "Key link copied to clipboard!";
-		Duration = 4;
-	})
-end)
-
-VerifyKey.MouseButton1Click:Connect(function()
-	local key = KeyBox.Text
-	if key == "" then
-		game.StarterGui:SetCore("SendNotification", {
-			Title = "Error";
-			Text = "Please enter your key.";
-			Duration = 3;
-		})
-		return
-	end
-
-	local valid, err = Platoboost:VerifyKey(service, secret, key, useNonce)
-	if valid then
-		game.StarterGui:SetCore("SendNotification", {
-			Title = "Success";
-			Text = "Key verified!";
-			Duration = 3;
-		})
-		ScreenGui:Destroy()
+-- == Verify Key ==
+local function verifyKey(key)
+	local url = string.format("%s/public/whitelist/%s?identifier=%s&key=%s", host, service, lDigest(fGetHwid()), key)
+	local res = fRequest({ Url = url, Method = "GET" })
+	if not res then return onMessage("No response from server.") end
+	local data = lDecode(res.Body)
+	if data.success and data.data.valid then
+		onMessage("Key verified successfully!")
+		return true
 	else
-		game.StarterGui:SetCore("SendNotification", {
-			Title = "Invalid Key";
-			Text = err or "Verification failed.";
-			Duration = 3;
-		})
+		onMessage("Invalid or expired key.")
+		return false
 	end
-end)
+end
 
-JoinDiscord.MouseButton1Click:Connect(function()
-	setclipboard("https://discord.gg/YOURSERVER") -- replace this link
-	game.StarterGui:SetCore("SendNotification", {
-		Title = "Platoboost";
-		Text = "Discord invite copied!";
-		Duration = 3;
+-- == Get Link ==
+local function copyLink()
+	local res = fRequest({
+		Url = host .. "/public/start",
+		Method = "POST",
+		Headers = { ["Content-Type"] = "application/json" },
+		Body = lEncode({
+			service = service,
+			identifier = lDigest(fGetHwid()),
+		}),
 	})
+	if res and res.StatusCode == 200 then
+		local data = lDecode(res.Body)
+		if data.success and data.data.url then
+			if fSetClipboard then
+				fSetClipboard(data.data.url)
+				onMessage("Copied key link to clipboard!")
+			else
+				onMessage("Copy manually: " .. data.data.url)
+			end
+		end
+	else
+		onMessage("Failed to fetch key link.")
+	end
+end
+
+-- == GUI ==
+task.spawn(function()
+	local gui = Instance.new("ScreenGui")
+	gui.Name = "PlatoboostKeySystem"
+	gui.ResetOnSpawn = false
+	gui.Parent = player:WaitForChild("PlayerGui")
+
+	local frame = Instance.new("Frame")
+	frame.Size = UDim2.new(0, 370, 0, 210)
+	frame.Position = UDim2.new(0.5, -185, 0.5, -105)
+	frame.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
+	frame.BorderColor3 = Color3.fromRGB(255, 255, 255)
+	frame.BorderSizePixel = 2
+	frame.Parent = gui
+
+	local title = Instance.new("TextLabel")
+	title.Text = "Platoboost Key System"
+	title.Size = UDim2.new(1, -30, 0, 35)
+	title.Position = UDim2.new(0, 15, 0, 5)
+	title.BackgroundTransparency = 1
+	title.Font = Enum.Font.GothamBold
+	title.TextColor3 = Color3.fromRGB(255, 255, 255)
+	title.TextScaled = true
+	title.Parent = frame
+
+	local close = Instance.new("TextButton")
+	close.Text = "X"
+	close.Size = UDim2.new(0, 30, 0, 30)
+	close.Position = UDim2.new(1, -35, 0, 5)
+	close.BackgroundTransparency = 1
+	close.Font = Enum.Font.GothamBold
+	close.TextColor3 = Color3.fromRGB(255, 100, 100)
+	close.TextScaled = true
+	close.Parent = frame
+	close.MouseButton1Click:Connect(function() gui:Destroy() end)
+
+	local keyBox = Instance.new("TextBox")
+	keyBox.PlaceholderText = "Enter your key here..."
+	keyBox.Size = UDim2.new(0.9, 0, 0, 35)
+	keyBox.Position = UDim2.new(0.05, 0, 0.3, 0)
+	keyBox.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+	keyBox.BorderColor3 = Color3.fromRGB(255, 255, 255)
+	keyBox.BorderSizePixel = 1
+	keyBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+	keyBox.Font = Enum.Font.Gotham
+	keyBox.TextScaled = true
+	keyBox.Parent = frame
+
+	local getBtn = Instance.new("TextButton")
+	getBtn.Text = "Get Key"
+	getBtn.Size = UDim2.new(0.42, 0, 0, 35)
+	getBtn.Position = UDim2.new(0.05, 0, 0.55, 0)
+	getBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+	getBtn.BorderColor3 = Color3.fromRGB(255, 255, 255)
+	getBtn.BorderSizePixel = 1
+	getBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+	getBtn.Font = Enum.Font.GothamBold
+	getBtn.TextScaled = true
+	getBtn.Parent = frame
+
+	local verifyBtn = Instance.new("TextButton")
+	verifyBtn.Text = "Verify Key"
+	verifyBtn.Size = UDim2.new(0.42, 0, 0, 35)
+	verifyBtn.Position = UDim2.new(0.53, 0, 0.55, 0)
+	verifyBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+	verifyBtn.BorderColor3 = Color3.fromRGB(255, 255, 255)
+	verifyBtn.BorderSizePixel = 1
+	verifyBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+	verifyBtn.Font = Enum.Font.GothamBold
+	verifyBtn.TextScaled = true
+	verifyBtn.Parent = frame
+
+	local discordBtn = Instance.new("TextButton")
+	discordBtn.Text = "Join Discord"
+	discordBtn.Size = UDim2.new(0.9, 0, 0, 35)
+	discordBtn.Position = UDim2.new(0.05, 0, 0.8, 0)
+	discordBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+	discordBtn.BorderColor3 = Color3.fromRGB(255, 255, 255)
+	discordBtn.BorderSizePixel = 1
+	discordBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+	discordBtn.Font = Enum.Font.GothamBold
+	discordBtn.TextScaled = true
+	discordBtn.Parent = frame
+
+	getBtn.MouseButton1Click:Connect(copyLink)
+	verifyBtn.MouseButton1Click:Connect(function()
+		local key = keyBox.Text
+		if key == "" then onMessage("Please enter a key.") return end
+		if verifyKey(key) then
+			onMessage("Access granted! Loading script...")
+			loadstring(game:HttpGet("https://pastebin.com/raw/DTrES0c6"))()
+			gui:Destroy()
+		end
+	end)
+	discordBtn.MouseButton1Click:Connect(function()
+		if fSetClipboard then
+			fSetClipboard("https://discord.gg/YOURSERVER")
+			onMessage("Discord invite copied to clipboard!")
+		else
+			onMessage("Join Discord: https://discord.gg/mcZcNV9Sgg")
+		end
+	end)
 end)
