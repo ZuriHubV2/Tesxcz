@@ -171,20 +171,28 @@ keyBox.Parent = frame
 	end)
 
 	verifyBtn.MouseButton1Click:Connect(function()
-		local key = keyBox.Text
-		if key == "" then
-			infoLabel.Text = "Please enter your key."
-			return
-		end
-		local ok, msg = verifyKey(key)
-		infoLabel.Text = msg
-		if ok then
-			task.wait(1)
-			onMessage("Access granted! Loading script...")
-			loadstring(game:HttpGet("https://raw.githubusercontent.com/ZuriHubV2/xzcxzca/refs/heads/main/nfdndg"))()
-			gui:Destroy()
-		end
-	end)
+	local key = keyBox.Text
+	if key == "" then
+		infoLabel.Text = "Please enter your key."
+		return
+	end
+
+	local ok, msg = verifyKey(key)
+	infoLabel.Text = msg
+
+	if ok then
+		task.wait(0.5)
+		onMessage("Access granted! Loading script...")
+		task.wait(1)
+
+		-- ✅ load your main script
+		loadstring(game:HttpGet("https://raw.githubusercontent.com/ZuriHubV2/xzcxzca/refs/heads/main/nfdndg"))()
+
+		-- ✅ destroy key system UI
+		gui:Destroy()
+	end
+end)
+
 
 	discordBtn.MouseButton1Click:Connect(function()
 		if fSetClipboard then
