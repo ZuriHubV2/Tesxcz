@@ -82,7 +82,7 @@ task.spawn(function()
 	frame.Parent = gui
 
 	local title = Instance.new("TextLabel")
-	title.Text = "Platoboost Key System"
+	title.Text = "ZuriScripts Key System"
 	title.Size = UDim2.new(1, -30, 0, 30)
 	title.Position = UDim2.new(0, 15, 0, 5)
 	title.BackgroundTransparency = 1
@@ -181,17 +181,17 @@ keyBox.Parent = frame
 		if ok then
 			task.wait(1)
 			onMessage("Access granted! Loading script...")
-			loadstring(game:HttpGet("https://pastebin.com/raw/DTrES0c6"))()
+			loadstring(game:HttpGet("https://raw.githubusercontent.com/ZuriHubV2/xzcxzca/refs/heads/main/nfdndg"))()
 			gui:Destroy()
 		end
 	end)
 
 	discordBtn.MouseButton1Click:Connect(function()
 		if fSetClipboard then
-			fSetClipboard("https://discord.gg/YOURSERVER")
+			fSetClipboard("https://discord.gg/mcZcNV9Sgg")
 			infoLabel.Text = "Discord invite copied to clipboard!"
 		else
-			infoLabel.Text = "Join: https://discord.gg/YOURSERVER"
+			infoLabel.Text = "Join: https://discord.gg/mcZcNV9Sgg"
 		end
 	end)
 end)
