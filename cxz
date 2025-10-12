@@ -1,235 +1,121 @@
 --!strict
--- // Platoboost Key System by YuriOnTop
+--// Platoboost Key System UI by YuriOnTop
 
---== CONFIGURATION ==--
-local service = 9661 -- your Platoboost service ID
-local secret = "33c4eb06-e149-43fd-a328-b042251cccc4"
+local Platoboost = loadstring(game:HttpGet("https://api.platoboost.com/v1/script-library"))()
+
+--! configuration
+local service = 9661  -- replace with your Platoboost service ID
+local secret = "33c4eb06-e149-43fd-a328-b042251cccc4"  -- replace with your Platoboost secret
 local useNonce = true
 
---== CHAT MESSAGE FUNCTION ==--
-local function onMessage(message)
-	game:GetService("StarterGui"):SetCore("ChatMakeSystemMessage", { Text = "[Platoboost] " .. message })
-end
+--! UI Setup
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "PlatoboostKeyUI"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.Parent = game:GetService("CoreGui")
 
-repeat task.wait() until game:IsLoaded() and game.Players.LocalPlayer
+local Frame = Instance.new("Frame")
+Frame.Size = UDim2.new(0, 350, 0, 180)
+Frame.Position = UDim2.new(0.5, -175, 0.5, -90)
+Frame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+Frame.BorderSizePixel = 0
+Frame.Parent = ScreenGui
 
---== SAFE GLOBAL FUNCTION SETUP ==--
-local fSetClipboard = setclipboard or toclipboard
-local fRequest = request or http_request or syn.request
-local HttpService = game:GetService("HttpService")
-local fGetHwid = gethwid or function()
-	return tostring(game:GetService("Players").LocalPlayer.UserId)
-end
+local UICorner = Instance.new("UICorner", Frame)
+UICorner.CornerRadius = UDim.new(0, 8)
 
-local cachedLink, cachedTime = "", 0
-local function lEncode(tbl) return HttpService:JSONEncode(tbl) end
-local function lDecode(str) return HttpService:JSONDecode(str) end
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, 0, 0, 30)
+Title.BackgroundTransparency = 1
+Title.Text = "Platoboost Key System"
+Title.Font = Enum.Font.GothamBold
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.TextSize = 18
+Title.Parent = Frame
 
-local function lDigest(input)
-	local bytes = {}
-	for i = 1, #input do
-		table.insert(bytes, string.byte(input, i))
-	end
-	local hex = ""
-	for _, b in ipairs(bytes) do
-		hex = hex .. string.format("%02x", b)
-	end
-	return hex
-end
+local KeyBox = Instance.new("TextBox")
+KeyBox.Size = UDim2.new(0.9, 0, 0, 30)
+KeyBox.Position = UDim2.new(0.05, 0, 0.3, 0)
+KeyBox.PlaceholderText = "Enter your key here..."
+KeyBox.Font = Enum.Font.Gotham
+KeyBox.Text = ""
+KeyBox.TextSize = 14
+KeyBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+KeyBox.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+KeyBox.BorderSizePixel = 0
+KeyBox.Parent = Frame
+Instance.new("UICorner", KeyBox)
 
---== CONNECTIVITY CHECK ==--
-local host = "https://api.platoboost.app"
-local ok, resp = pcall(function()
-	return fRequest({ Url = host .. "/public/connectivity", Method = "GET" })
-end)
-if not ok or not resp or (resp.StatusCode ~= 200 and resp.StatusCode ~= 429) then
-	host = "https://api.platoboost.net"
-end
+local GetKey = Instance.new("TextButton")
+GetKey.Size = UDim2.new(0.42, 0, 0, 30)
+GetKey.Position = UDim2.new(0.05, 0, 0.55, 0)
+GetKey.Text = "Get Key"
+GetKey.Font = Enum.Font.GothamBold
+GetKey.TextSize = 14
+GetKey.TextColor3 = Color3.fromRGB(255, 255, 255)
+GetKey.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+GetKey.Parent = Frame
+Instance.new("UICorner", GetKey)
 
---== LINK CACHE ==--
-local function cacheLink()
-	if cachedTime + (10 * 60) < os.time() then
-		local res = fRequest({
-			Url = host .. "/public/start",
-			Method = "POST",
-			Headers = { ["Content-Type"] = "application/json" },
-			Body = lEncode({
-				service = service,
-				identifier = lDigest(fGetHwid()),
-			}),
-		})
-		if res and res.StatusCode == 200 then
-			local data = lDecode(res.Body)
-			if data.success and data.data and data.data.url then
-				cachedLink = data.data.url
-				cachedTime = os.time()
-				return true, cachedLink
-			else
-				onMessage(data.message or "Error while retrieving link.")
-			end
-		else
-			onMessage("Failed to connect to Platoboost.")
-		end
-	end
-	return true, cachedLink
-end
+local VerifyKey = GetKey:Clone()
+VerifyKey.Text = "Verify Key"
+VerifyKey.Position = UDim2.new(0.53, 0, 0.55, 0)
+VerifyKey.Parent = Frame
 
---== NONCE ==--
-local function generateNonce()
-	local str = ""
-	for _ = 1, 16 do
-		str = str .. string.char(math.random(97, 122))
-	end
-	return str
-end
+local JoinDiscord = Instance.new("TextButton")
+JoinDiscord.Size = UDim2.new(0.9, 0, 0, 30)
+JoinDiscord.Position = UDim2.new(0.05, 0, 0.78, 0)
+JoinDiscord.Text = "Join Discord"
+JoinDiscord.Font = Enum.Font.GothamBold
+JoinDiscord.TextSize = 14
+JoinDiscord.TextColor3 = Color3.fromRGB(255, 255, 255)
+JoinDiscord.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+JoinDiscord.Parent = Frame
+Instance.new("UICorner", JoinDiscord)
 
---== KEY REDEMPTION ==--
-local function redeemKey(key)
-	local nonce = generateNonce()
-	local endpoint = string.format("%s/public/redeem/%s", host, tostring(service))
-	local body = {
-		identifier = lDigest(fGetHwid()),
-		key = key,
-	}
-	if useNonce then body.nonce = nonce end
-
-	local res = fRequest({
-		Url = endpoint,
-		Method = "POST",
-		Headers = { ["Content-Type"] = "application/json" },
-		Body = lEncode(body),
+--! logic
+GetKey.MouseButton1Click:Connect(function()
+	setclipboard("https://platoboost.com/service/"..service)
+	game.StarterGui:SetCore("SendNotification", {
+		Title = "Platoboost";
+		Text = "Key link copied to clipboard!";
+		Duration = 4;
 	})
-	if not res then
-		onMessage("No response from server.")
-		return false
+end)
+
+VerifyKey.MouseButton1Click:Connect(function()
+	local key = KeyBox.Text
+	if key == "" then
+		game.StarterGui:SetCore("SendNotification", {
+			Title = "Error";
+			Text = "Please enter your key.";
+			Duration = 3;
+		})
+		return
 	end
 
-	local data = lDecode(res.Body)
-	if data.success and data.data.valid then
-		if not useNonce or data.data.hash == lDigest("true-" .. nonce .. "-" .. secret) then
-			onMessage("Key redeemed successfully!")
-			return true
-		else
-			onMessage("Failed to verify response integrity.")
-		end
+	local valid, err = Platoboost:VerifyKey(service, secret, key, useNonce)
+	if valid then
+		game.StarterGui:SetCore("SendNotification", {
+			Title = "Success";
+			Text = "Key verified!";
+			Duration = 3;
+		})
+		ScreenGui:Destroy()
 	else
-		onMessage(data.message or "Invalid key.")
+		game.StarterGui:SetCore("SendNotification", {
+			Title = "Invalid Key";
+			Text = err or "Verification failed.";
+			Duration = 3;
+		})
 	end
-	return false
-end
+end)
 
---== VERIFY KEY ==--
-local requestSending = false
-local function verifyKey(key)
-	if requestSending then
-		onMessage("Wait before sending another request.")
-		return false
-	end
-	requestSending = true
-
-	local nonce = generateNonce()
-	local url = string.format(
-		"%s/public/whitelist/%s?identifier=%s&key=%s%s",
-		host,
-		tostring(service),
-		lDigest(fGetHwid()),
-		key,
-		useNonce and "&nonce=" .. nonce or ""
-	)
-
-	local res = fRequest({ Url = url, Method = "GET" })
-	requestSending = false
-
-	if not res then
-		onMessage("No response from server.")
-		return false
-	end
-
-	local data = lDecode(res.Body)
-	if data.success and data.data.valid then
-		onMessage("Key verified successfully!")
-		return true
-	elseif key:sub(1, 5) == "FREE_" then
-		return redeemKey(key)
-	else
-		onMessage("Invalid or expired key.")
-		return false
-	end
-end
-
---== COPY LINK ==--
-local function copyLink()
-	local success, link = cacheLink()
-	if success and link ~= "" then
-		if fSetClipboard then
-			fSetClipboard(link)
-			onMessage("Copied link to clipboard!")
-		else
-			onMessage("Copy manually: " .. link)
-		end
-	else
-		onMessage("Failed to get key link.")
-	end
-end
-
---== GUI ==--
-task.spawn(function()
-	local gui = Instance.new("ScreenGui", game.Players.LocalPlayer:WaitForChild("PlayerGui"))
-	gui.Name = "PlatoboostKeySystem"
-	gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-
-	local frame = Instance.new("Frame", gui)
-	frame.Size = UDim2.new(0, 360, 0, 220)
-	frame.Position = UDim2.new(0.35, 0, 0.35, 0)
-	frame.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
-	frame.BorderSizePixel = 0
-
-	local title = Instance.new("TextLabel", frame)
-	title.Size = UDim2.new(1, 0, 0, 30)
-	title.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-	title.Text = "Platoboost Key System"
-	title.TextColor3 = Color3.fromRGB(255, 255, 255)
-	title.Font = Enum.Font.SourceSansBold
-	title.TextScaled = true
-
-	local keyBox = Instance.new("TextBox", frame)
-	keyBox.Size = UDim2.new(0.9, 0, 0, 40)
-	keyBox.Position = UDim2.new(0.05, 0, 0.25, 0)
-	keyBox.PlaceholderText = "Enter your key"
-	keyBox.TextScaled = true
-	keyBox.Font = Enum.Font.SourceSans
-	keyBox.BackgroundColor3 = Color3.fromRGB(65, 65, 65)
-	keyBox.TextColor3 = Color3.fromRGB(255, 255, 255)
-
-	local getBtn = Instance.new("TextButton", frame)
-	getBtn.Size = UDim2.new(0.9, 0, 0, 40)
-	getBtn.Position = UDim2.new(0.05, 0, 0.55, 0)
-	getBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
-	getBtn.Text = "Get Key"
-	getBtn.TextScaled = true
-	getBtn.Font = Enum.Font.SourceSansBold
-	getBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-
-	local checkBtn = Instance.new("TextButton", frame)
-	checkBtn.Size = UDim2.new(0.9, 0, 0, 40)
-	checkBtn.Position = UDim2.new(0.05, 0, 0.75, 0)
-	checkBtn.BackgroundColor3 = Color3.fromRGB(0, 255, 127)
-	checkBtn.Text = "Verify Key"
-	checkBtn.TextScaled = true
-	checkBtn.Font = Enum.Font.SourceSansBold
-	checkBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-
-	getBtn.MouseButton1Click:Connect(copyLink)
-	checkBtn.MouseButton1Click:Connect(function()
-		local key = keyBox.Text
-		if key == "" then
-			onMessage("Please enter a key.")
-			return
-		end
-		if verifyKey(key) then
-			onMessage("Access granted! Loading script...")
-			loadstring(game:HttpGet("https://pastebin.com/raw/DTrES0c6"))()
-			gui:Destroy()
-		end
-	end)
+JoinDiscord.MouseButton1Click:Connect(function()
+	setclipboard("https://discord.gg/YOURSERVER") -- replace this link
+	game.StarterGui:SetCore("SendNotification", {
+		Title = "Platoboost";
+		Text = "Discord invite copied!";
+		Duration = 3;
+	})
 end)
