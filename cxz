@@ -1,4 +1,4 @@
--- Platoboost Key System (Zysume UI remake) by YuriOnTop
+-- Platoboost Key System (Zysume UI remake, fixed editable key box)
 
 -- CONFIG
 local service = 9661
@@ -102,17 +102,19 @@ task.spawn(function()
 	close.Parent = frame
 	close.MouseButton1Click:Connect(function() gui:Destroy() end)
 
-	local keyLabel = Instance.new("TextLabel")
-	keyLabel.Text = "Enter your key here..."
-	keyLabel.Size = UDim2.new(0.9, 0, 0, 30)
-	keyLabel.Position = UDim2.new(0.05, 0, 0.3, 0)
-	keyLabel.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-	keyLabel.BorderColor3 = Color3.fromRGB(255, 255, 255)
-	keyLabel.BorderSizePixel = 1
-	keyLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-	keyLabel.Font = Enum.Font.Gotham
-	keyLabel.TextSize = 16
-	keyLabel.Parent = frame
+	-- ✅ Editable TextBox (Fixed)
+	local keyBox = Instance.new("TextBox")
+	keyBox.PlaceholderText = "Enter your key here..."
+	keyBox.Size = UDim2.new(0.9, 0, 0, 30)
+	keyBox.Position = UDim2.new(0.05, 0, 0.3, 0)
+	keyBox.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+	keyBox.BorderColor3 = Color3.fromRGB(255, 255, 255)
+	keyBox.BorderSizePixel = 1
+	keyBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+	keyBox.Font = Enum.Font.Gotham
+	keyBox.TextSize = 16
+	keyBox.ClearTextOnFocus = false
+	keyBox.Parent = frame
 
 	local getBtn = Instance.new("TextButton")
 	getBtn.Text = "Get Key"
@@ -166,8 +168,8 @@ task.spawn(function()
 	end)
 
 	verifyBtn.MouseButton1Click:Connect(function()
-		local key = keyLabel.Text
-		if key == "Enter your key here..." or key == "" then
+		local key = keyBox.Text
+		if key == "" then
 			infoLabel.Text = "Please enter your key."
 			return
 		end
